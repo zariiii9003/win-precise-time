@@ -9,7 +9,7 @@
 #include <Windows.h>
 
 
-static VOID (CALLBACK *Py_GetSystemTimePreciseAsFileTime)(LPFILETIME) = NULL;
+static VOID (CALLBACK *wpt_GetSystemTimePreciseAsFileTime)(LPFILETIME) = NULL;
 
 
 static PyObject *precise_time(PyObject *self, PyObject *args)
@@ -18,7 +18,7 @@ static PyObject *precise_time(PyObject *self, PyObject *args)
     ULARGE_INTEGER large;
     ULONGLONG offset = 11644473600000000000;
 
-    Py_GetSystemTimePreciseAsFileTime(&file_time);
+    wpt_GetSystemTimePreciseAsFileTime(&file_time);
     large.LowPart = file_time.dwLowDateTime;
     large.HighPart = file_time.dwHighDateTime;
 
@@ -50,10 +50,10 @@ PyMODINIT_FUNC PyInit__t(void)
 
     hKernel32 = GetModuleHandleW(L"KERNEL32");
     /* Function available on Windows 8, Windows Server 2012 and newer */
-    *(FARPROC*)&Py_GetSystemTimePreciseAsFileTime = GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
+    *(FARPROC*)&wpt_GetSystemTimePreciseAsFileTime = GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
 
      /* ensure that the system clock works */
-     if (Py_GetSystemTimePreciseAsFileTime == NULL){
+     if (wpt_GetSystemTimePreciseAsFileTime == NULL){
          return (NULL);
      }
 
