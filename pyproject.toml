@@ -34,3 +34,8 @@ Homepage = "https://github.com/zariiii9003/win-precise-time"
 
 [tool.setuptools.dynamic]
 version = {attr = "win_precise_time.__version__"}
+
+[tool.cibuildwheel]
+test-requires = "pytest"
+test-command = "pytest {project}/tests"
+build-frontend = "build"
