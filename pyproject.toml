@@ -1,0 +1,36 @@
+[build-system]
+build-backend = 'setuptools.build_meta'
+requires = ["setuptools >= 61.0", "wheel"]
+
+[project]
+name = "win-precise-time"
+description = ''
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+keywords = []
+authors = [
+  { name = "Artur Drogunow", email = "artur.drogunow@zf.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/zariiii9003/win-precise-time#readme"
+Issues = "https://github.com/zariiii9003/win-precise-time/issues"
+Source = "https://github.com/zariiii9003/win-precise-time"
+Homepage = "https://github.com/zariiii9003/win-precise-time"
+
+[tool.setuptools.dynamic]
+version = {attr = "win_precise_time.__version__"}
