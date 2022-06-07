@@ -1,6 +1,13 @@
 name: Build & Release
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PY_COLORS: "1"
+
 
 jobs:
   build_wheels:
@@ -43,6 +50,7 @@ jobs:
     needs: [ build_wheels, build_sdist ]
     runs-on: ubuntu-latest
 
+    # create a new release for tagged commits
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v2
