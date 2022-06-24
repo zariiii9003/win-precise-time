@@ -69,6 +69,7 @@ static PyObject *precise_sleep(PyObject *self, PyObject *args)
 
         if (rc == WAIT_OBJECT_0)
         {
+            // Timer signaled: we are done
             break;
         }
 
@@ -83,9 +84,6 @@ static PyObject *precise_sleep(PyObject *self, PyObject *args)
             goto error;
         }
     }
-
-    assert(rc == WAIT_OBJECT_0);
-    // Timer signaled: we are done
 
     CloseHandle(timer);
     Py_RETURN_NONE;
