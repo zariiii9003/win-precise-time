@@ -13,3 +13,4 @@
 #include <Python.h>
 
 static PyObject *precise_time(PyObject *self, PyObject *args);
+static PyObject *precise_sleep(PyObject *self, PyObject *timeout_obj);

@@ -6,20 +6,23 @@ requires = ["setuptools >= 61.0", "wheel"]
 name = "win-precise-time"
 description = ''
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3"
 license = { text = "MIT" }
-keywords = []
+keywords = [
+  "Windows", 
+  "time",
+  "sleep",
+  "GetSystemTimePreciseAsFileTime",
+  "SetWaitableTimerEx",
+  "CREATE_WAITABLE_TIMER_HIGH_RESOLUTION",
+]
 authors = [
   { name = "Artur Drogunow", email = "artur.drogunow@zf.com" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
