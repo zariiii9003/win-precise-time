@@ -42,3 +42,6 @@ version = {attr = "win_precise_time.__version__"}
 test-requires = "pytest"
 test-command = "pytest {project}/tests"
 build-frontend = "build"
+
+# Disable until https://foss.heptapod.net/pypy/pypy/-/issues/3770 is resolved
+skip = "pp39-win_amd64"

@@ -26,7 +26,7 @@ static PyObject *precise_time(PyObject *self, PyObject *args)
 // precise sleep function based on the CPython 3.11 implementation
 static PyObject *precise_sleep(PyObject *self, PyObject *args)
 {
-    // get time time of function call
+    // get time of function call
     FILETIME file_time;
     wpt_GetSystemTimePreciseAsFileTime(&file_time);
 
