@@ -7,6 +7,7 @@ def test_module_import():
 
 def test_function_import():
     from win_precise_time import time
+    from win_precise_time import time_ns
     from win_precise_time import sleep
 
 
@@ -15,6 +16,13 @@ def test_correct_time():
     import time
 
     assert win_precise_time.time() == pytest.approx(time.time())
+
+
+def test_correct_time_ns():
+    import win_precise_time
+    import time
+
+    assert win_precise_time.time_ns() == pytest.approx(time.time_ns())
 
 
 def test_no_args():
@@ -32,4 +40,27 @@ def test_sleep():
     win_precise_time.sleep(1.5)
     t1 = time.perf_counter()
 
-    assert 1.5 < t1 - t0 < 2.0
+    assert t1 - t0 >= 1.5
+    assert t1 - t0 < 2.0
+
+
+def test_sleep_until():
+    import win_precise_time
+    import time
+
+    t_wakeup = time.time() + 1.5
+    win_precise_time._sleep_until(t_wakeup)
+    t1 = time.time()
+
+    assert t1 == pytest.approx(t_wakeup)
+
+
+def test_sleep_until_ns():
+    import win_precise_time
+    import time
+
+    t_wakeup = time.time_ns() + 1_500_000_000
+    win_precise_time._sleep_until_ns(t_wakeup)
+    t1 = time.time_ns()
+
+    assert t1 == pytest.approx(t_wakeup)

@@ -2,106 +2,273 @@
 #
 # SPDX-License-Identifier: MIT */
 
-#ifndef Py_LIMITED_API
-    #define Py_LIMITED_API
-#endif
-#include "_t.h"
+#define PY_SSIZE_T_CLEAN
+
+#include <Python.h>
 #include <Windows.h>
+
+#define S_TO_100NS 10000000
+#define FILETIME_OFFSET_NS 11644473600000000000ULL
 
 static VOID(CALLBACK *wpt_GetSystemTimePreciseAsFileTime)(LPFILETIME) = NULL;
 
-static PyObject *precise_time(PyObject *self, PyObject *args)
+static ULONGLONG _wpt_time_ns()
 {
     FILETIME file_time;
     ULARGE_INTEGER large;
-    ULONGLONG offset = 11644473600000000000;
 
     wpt_GetSystemTimePreciseAsFileTime(&file_time);
     large.LowPart = file_time.dwLowDateTime;
     large.HighPart = file_time.dwHighDateTime;
 
-    return PyFloat_FromDouble((double)(large.QuadPart * 100 - offset) * 1e-9);
+    return large.QuadPart * 100 - FILETIME_OFFSET_NS;
 }
 
-// precise sleep function based on the CPython 3.11 implementation
-static PyObject *precise_sleep(PyObject *self, PyObject *args)
+// helper function to check wether remaing sleep duration is below thr
+static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
 {
-    // get time of function call
-    FILETIME file_time;
-    wpt_GetSystemTimePreciseAsFileTime(&file_time);
+    if (due_time < 0)
+    {
+        // relative due time
+        return (-1 * due_time < thr);
+    }
+    else
+    {
+        // absolute due time
+        ULONGLONG current_time = _wpt_time_ns() / 100;  // current time in 100ns intervals
+        return ((due_time - current_time) < thr);
+    }
+}
 
-    double timeout_s;
-    if (!PyArg_ParseTuple(args, "d", &timeout_s))
-        return NULL;
-
-    // convert timeout from seconds to 100ns intervals and add it to current time
-    LARGE_INTEGER due_time;
-    due_time.LowPart = file_time.dwLowDateTime;
-    due_time.HighPart = file_time.dwHighDateTime;
-    due_time.QuadPart += (LONGLONG)(timeout_s * 10000000);
-
-    HANDLE timer = CreateWaitableTimerExW(NULL, NULL,
+static int
+_sleep_until(LARGE_INTEGER *due_time)
+{
+    HANDLE timer = CreateWaitableTimerExW(NULL, 
+                                          NULL,
                                           CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
                                           TIMER_ALL_ACCESS);
     if (timer == NULL)
     {
         PyErr_SetFromWindowsErr(0);
-        return NULL;
+        return -1;
     }
 
-    if (!SetWaitableTimerEx(timer, &due_time,
-                            0,          // no period; the timer is signaled once
-                            NULL, NULL, // no completion routine
-                            NULL,       // no wake context; do not resume from suspend
-                            0))         // no tolerable delay for timer coalescing
+    if (!SetWaitableTimerEx(timer,
+                            due_time,
+                            0,         // no period; the timer is signaled once
+                            NULL,      // callback from signalling thread
+                            NULL,      // argument to callback
+                            NULL,      // no wake context; do not resume from suspend
+                            0))        // no tolerable delay for timer coalescing
     {
         PyErr_SetFromWindowsErr(0);
         goto error;
     }
 
     DWORD rc;
-    DWORD wait_timeout_ms = 1111;  // check for SIGINT in regular intervals
-    while (1)
-    {
-        Py_BEGIN_ALLOW_THREADS
-            rc = WaitForSingleObject(timer, wait_timeout_ms);
-        Py_END_ALLOW_THREADS
+    // Only the main thread can be interrupted by SIGINT.
+    // Signal handlers are only executed in the main thread.
+    if (_PyOS_IsMainThread()) {
+        HANDLE sigint_event = _PyOS_SigintEvent();
 
-        if (rc == WAIT_OBJECT_0)
+        while (1) {
+            
+            // Check for pending SIGINT signal before resetting the event
+            if (PyErr_CheckSignals()) {
+                goto error;
+            }
+            ResetEvent(sigint_event);
+
+            HANDLE events[] = {timer, sigint_event};
+            
+            BOOL keep_gil = _sleep_time_is_below_threshold(due_time, 300000LL);  // thr=0.3ms
+            if (keep_gil)
+            {
+                rc = WaitForSingleObject(timer, INFINITE);
+            }
+            else
+            {
+                Py_BEGIN_ALLOW_THREADS
+                rc = WaitForMultipleObjects(Py_ARRAY_LENGTH(events), events,
+                                            // bWaitAll
+                                            FALSE,
+                                            // No wait timeout
+                                            INFINITE);
+                Py_END_ALLOW_THREADS
+            }
+
+            if (rc == WAIT_FAILED) {
+                PyErr_SetFromWindowsErr(0);
+                goto error;
+            }
+
+            if (rc == WAIT_OBJECT_0) {
+                // Timer signaled: we are done
+                break;
+            }
+
+            if (!keep_gil)
+            {
+                assert(rc == (WAIT_OBJECT_0 + 1));
+                // The sleep was interrupted by SIGINT: restart sleepin
+            }
+        }
+    }
+    else 
+    {
+        BOOL keep_gil = _sleep_time_is_below_threshold(due_time, 300000LL);  // thr=0.3ms
+        if (keep_gil)
         {
-            // Timer signaled: we are done
-            break;
+            rc = WaitForSingleObject(timer, INFINITE);
+        }
+        else
+        {
+            Py_BEGIN_ALLOW_THREADS
+            rc = WaitForSingleObject(timer, INFINITE);
+            Py_END_ALLOW_THREADS
         }
 
-        if (rc == WAIT_FAILED)
-        {
+        if (rc == WAIT_FAILED) {
             PyErr_SetFromWindowsErr(0);
             goto error;
         }
 
-        if (PyErr_CheckSignals())
-        {
-            goto error;
-        }
+        assert(rc == WAIT_OBJECT_0);
+        // Timer signaled: we are done            
     }
 
     CloseHandle(timer);
-    Py_RETURN_NONE;
+    return 0;
 
 error:
     CloseHandle(timer);
+    return -1;
+}
+
+static PyObject *
+wpt_time_ns(PyObject *self, PyObject *args)
+{
+    return PyLong_FromUnsignedLongLong(_wpt_time_ns());
+}
+
+static PyObject *
+wpt_time(PyObject *self, PyObject *args)
+{
+    return PyFloat_FromDouble((double)(_wpt_time_ns()) * 1e-9);
+}
+
+// precise sleep function based on the CPython 3.11 implementation
+static PyObject *
+wpt_sleep(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    if (nargs != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
+        return NULL;
+    }
+
+    double timeout_s = PyFloat_AsDouble(args[0]);
+
+    // take shortcut if timeout is very small or negative
+    if (timeout_s <= 1e-4)
+    {
+        Py_RETURN_NONE;
+    }
+
+    // convert timeout from seconds to 100ns intervals and add it to current time
+    LARGE_INTEGER due_time;
+    due_time.QuadPart = -1 * (LONGLONG)(timeout_s * S_TO_100NS);
+
+    if (!_sleep_until(&due_time))
+    {
+        Py_RETURN_NONE;
+    }
     return NULL;
 }
 
+
+static PyObject *
+wpt_sleep_until(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    if (nargs != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
+        return NULL;
+    }
+    double t_wakeup_s = PyFloat_AsDouble(args[0]);
+
+    // convert wakeup time from seconds to 100ns intervals and add it to current time
+    LARGE_INTEGER due_time;
+    due_time.QuadPart = ((LONGLONG)(t_wakeup_s * 1e9) + FILETIME_OFFSET_NS) / 100;
+
+    if (!_sleep_until(&due_time))
+    {
+        Py_RETURN_NONE;
+    }
+    return NULL;
+}
+
+static PyObject *
+wpt_sleep_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    if (nargs != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
+        return NULL;
+    }
+    LONGLONG t_wakeup_ns = PyLong_AsLongLong(args[0]);
+
+    // convert wakeup time from nanoseconds to 100ns intervals and add it to current time
+    LARGE_INTEGER due_time;
+    due_time.QuadPart = (t_wakeup_ns + FILETIME_OFFSET_NS) / 100;
+
+    if (!_sleep_until(&due_time))
+    {
+        Py_RETURN_NONE;
+    }
+    return NULL;
+}
+
+static PyObject *
+wpt_hotloop_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    if (nargs != 1)
+    {
+        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
+        return NULL;
+    }
+    ULONGLONG t_wakeup_ns = PyLong_AsUnsignedLongLong(args[0]);
+
+    while (_wpt_time_ns() < t_wakeup_ns);
+    Py_RETURN_NONE;
+}
+
+
 static struct PyMethodDef methods[] = {
     {"time",
-     precise_time,
+     wpt_time,
      METH_NOARGS,
-     "Retrieve the current system time with the highest possible level of precision (<1us)."},
+     "Retrieve the current system time in seconds."},
+    {"time_ns",
+     wpt_time_ns,
+     METH_NOARGS,
+     "Retrieve the current system time in nannoseconds."},
     {"sleep",
-     precise_sleep,
-     METH_VARARGS,
+     wpt_sleep,
+     METH_FASTCALL,
      "Sleep for the given time using CREATE_WAITABLE_TIMER_HIGH_RESOLUTION."},
+    {"_sleep_until",
+     wpt_sleep_until,
+     METH_FASTCALL,
+     "Sleep until given system time in seconds."},
+     {"_sleep_until_ns",
+     wpt_sleep_until_ns,
+     METH_FASTCALL,
+     "Sleep until given system time in nanoseconds."},
+     {"_hotloop_until_ns",
+     wpt_hotloop_until_ns,
+     METH_FASTCALL,
+     "Hot loop until given system time in nanoseconds."},
     {NULL} // sentinel
 };
 
@@ -119,20 +286,12 @@ PyMODINIT_FUNC PyInit__t(void)
     hKernel32 = GetModuleHandleW(L"KERNEL32");
     /* Function available on Windows 8, Windows Server 2012 and newer */
     *(FARPROC *)&wpt_GetSystemTimePreciseAsFileTime = GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
-
-    /* ensure that the system clock works */
-    if (wpt_GetSystemTimePreciseAsFileTime == NULL)
-    {
-        return (NULL);
-    }
+    if (wpt_GetSystemTimePreciseAsFileTime == NULL) return (NULL);
 
     PyObject *module_p;
     module_p = PyModule_Create(&module);
 
-    if (module_p == NULL)
-    {
-        return (NULL);
-    }
+    if (module_p == NULL) return (NULL);
 
     return (module_p);
 }
