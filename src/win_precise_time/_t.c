@@ -10,7 +10,9 @@
 #define S_TO_100NS 10000000
 #define FILETIME_OFFSET_NS 11644473600000000000ULL
 
+
 static VOID(CALLBACK *wpt_GetSystemTimePreciseAsFileTime)(LPFILETIME) = NULL;
+
 
 static ULONGLONG _wpt_time_ns()
 {
@@ -24,7 +26,8 @@ static ULONGLONG _wpt_time_ns()
     return large.QuadPart * 100 - FILETIME_OFFSET_NS;
 }
 
-// helper function to check wether remaing sleep duration is below thr
+
+// helper function to check wether remaining sleep duration is below threshold
 static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
 {
     if (due_time < 0)
@@ -39,6 +42,7 @@ static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
         return ((due_time - (LONGLONG)current_time) < thr);
     }
 }
+
 
 static int
 _sleep_until(LARGE_INTEGER *due_time)
@@ -145,11 +149,13 @@ error:
     return -1;
 }
 
+
 static PyObject *
 wpt_time_ns(PyObject *self, PyObject *args)
 {
     return PyLong_FromUnsignedLongLong(_wpt_time_ns());
 }
+
 
 static PyObject *
 wpt_time(PyObject *self, PyObject *args)
@@ -157,7 +163,7 @@ wpt_time(PyObject *self, PyObject *args)
     return PyFloat_FromDouble((double)(_wpt_time_ns()) * 1e-9);
 }
 
-// precise sleep function based on the CPython 3.11 implementation
+
 static PyObject *
 wpt_sleep(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
@@ -208,6 +214,7 @@ wpt_sleep_until(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     return NULL;
 }
 
+
 static PyObject *
 wpt_sleep_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
@@ -229,6 +236,7 @@ wpt_sleep_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     return NULL;
 }
 
+
 static PyObject *
 wpt_hotloop_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
@@ -242,6 +250,7 @@ wpt_hotloop_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     while (_wpt_time_ns() < t_wakeup_ns);
     Py_RETURN_NONE;
 }
+
 
 static struct PyMethodDef methods[] = {
     {"time",
@@ -271,12 +280,14 @@ static struct PyMethodDef methods[] = {
     {NULL} // sentinel
 };
 
+
 static PyModuleDef module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "win_precise_time._t",
     .m_doc = "",
     .m_size = -1,
     .m_methods = methods};
+
 
 PyMODINIT_FUNC PyInit__t(void)
 {
