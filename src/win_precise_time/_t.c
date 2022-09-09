@@ -36,7 +36,7 @@ static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
     {
         // absolute due time
         ULONGLONG current_time = _wpt_time_ns() / 100;  // current time in 100ns intervals
-        return ((due_time - current_time) < thr);
+        return ((due_time - (LONGLONG)current_time) < thr);
     }
 }
 
@@ -81,7 +81,7 @@ _sleep_until(LARGE_INTEGER *due_time)
 
             HANDLE events[] = {timer, sigint_event};
             
-            BOOL keep_gil = _sleep_time_is_below_threshold(due_time, 300000LL);  // thr=0.3ms
+            BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 300000LL);  // thr=0.3ms
             if (keep_gil)
             {
                 rc = WaitForSingleObject(timer, INFINITE);
@@ -116,7 +116,7 @@ _sleep_until(LARGE_INTEGER *due_time)
     }
     else 
     {
-        BOOL keep_gil = _sleep_time_is_below_threshold(due_time, 300000LL);  // thr=0.3ms
+        BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 300000LL);  // thr=0.3ms
         if (keep_gil)
         {
             rc = WaitForSingleObject(timer, INFINITE);
@@ -242,7 +242,6 @@ wpt_hotloop_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     while (_wpt_time_ns() < t_wakeup_ns);
     Py_RETURN_NONE;
 }
-
 
 static struct PyMethodDef methods[] = {
     {"time",
