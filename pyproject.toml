@@ -1,6 +1,6 @@
 [build-system]
 build-backend = 'setuptools.build_meta'
-requires = ["setuptools >= 61.0", "wheel"]
+requires = ["setuptools >= 62.0"]
 
 [project]
 name = "win-precise-time"
@@ -24,7 +24,6 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = []
 dynamic = ["version"]
@@ -42,6 +41,4 @@ version = {attr = "win_precise_time.__version__"}
 test-requires = "pytest"
 test-command = "pytest {project}/tests"
 build-frontend = "build"
-
-# Disable until https://foss.heptapod.net/pypy/pypy/-/issues/3770 is resolved
-skip = "pp39-win_amd64"
+skip = "pp*"
