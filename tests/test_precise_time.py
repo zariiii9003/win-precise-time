@@ -43,6 +43,15 @@ def test_sleep():
     assert t1 - t0 >= 1.5
     assert t1 - t0 < 2.0
 
+    # test integer
+
+    t0 = time.perf_counter()
+    win_precise_time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert t1 - t0 >= 1.0
+    assert t1 - t0 < 1.5
+
 
 def test_sleep_until():
     import win_precise_time

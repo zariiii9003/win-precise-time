@@ -12,6 +12,17 @@
 
 
 static VOID(CALLBACK *wpt_GetSystemTimePreciseAsFileTime)(LPFILETIME) = NULL;
+static HANDLE(CALLBACK *wpt_CreateWaitableTimerExW)(LPSECURITY_ATTRIBUTES, 
+                                                    LPCWSTR, 
+                                                    DWORD, 
+                                                    DWORD) = NULL;
+static BOOL(CALLBACK *wpt_SetWaitableTimerEx)(HANDLE,
+                                              LARGE_INTEGER*,
+                                              LONG,
+                                              PTIMERAPCROUTINE,
+                                              LPVOID,
+                                              PREASON_CONTEXT,
+                                              ULONG) = NULL;
 
 
 static ULONGLONG _wpt_time_ns()
@@ -23,7 +34,7 @@ static ULONGLONG _wpt_time_ns()
     large.LowPart = file_time.dwLowDateTime;
     large.HighPart = file_time.dwHighDateTime;
 
-    return large.QuadPart * 100 - FILETIME_OFFSET_NS;
+    return (large.QuadPart * 100 - FILETIME_OFFSET_NS);
 }
 
 
@@ -47,23 +58,23 @@ static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
 static int
 _sleep_until(LARGE_INTEGER *due_time)
 {
-    HANDLE timer = CreateWaitableTimerExW(NULL, 
-                                          NULL,
-                                          CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
-                                          TIMER_ALL_ACCESS);
+    HANDLE timer = wpt_CreateWaitableTimerExW(NULL, 
+                                              NULL,
+                                              CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                              TIMER_ALL_ACCESS);
     if (timer == NULL)
     {
         PyErr_SetFromWindowsErr(0);
-        return -1;
+        return (-1);
     }
 
-    if (!SetWaitableTimerEx(timer,
-                            due_time,
-                            0,         // no period; the timer is signaled once
-                            NULL,      // callback from signalling thread
-                            NULL,      // argument to callback
-                            NULL,      // no wake context; do not resume from suspend
-                            0))        // no tolerable delay for timer coalescing
+    if (!wpt_SetWaitableTimerEx(timer,
+                                due_time,
+                                0,         // no period; the timer is signaled once
+                                NULL,      // callback from signalling thread
+                                NULL,      // argument to callback
+                                NULL,      // no wake context; do not resume from suspend
+                                0))        // no tolerable delay for timer coalescing
     {
         PyErr_SetFromWindowsErr(0);
         goto error;
@@ -142,38 +153,53 @@ _sleep_until(LARGE_INTEGER *due_time)
     }
 
     CloseHandle(timer);
-    return 0;
+    return (0);
 
 error:
     CloseHandle(timer);
-    return -1;
+    return (-1);
 }
 
 
 static PyObject *
 wpt_time_ns(PyObject *self, PyObject *args)
 {
-    return PyLong_FromUnsignedLongLong(_wpt_time_ns());
+    return (PyLong_FromUnsignedLongLong(_wpt_time_ns()));
 }
 
 
 static PyObject *
 wpt_time(PyObject *self, PyObject *args)
 {
-    return PyFloat_FromDouble((double)(_wpt_time_ns()) * 1e-9);
+    return (PyFloat_FromDouble((double)(_wpt_time_ns()) * 1e-9));
 }
 
 
 static PyObject *
-wpt_sleep(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+wpt_sleep(PyObject *self, PyObject *arg)
 {
-    if (nargs != 1)
+
+    double timeout_s;
+
+    if (PyFloat_Check(arg))
     {
-        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
-        return NULL;
+        timeout_s = PyFloat_AsDouble(arg);
+    }
+    else if (PyLong_Check(arg))
+    {
+        timeout_s = PyLong_AsDouble(arg);
+    }
+    else
+    {
+        PyErr_Format(PyExc_TypeError,
+                     "Argument \"timeout_s\" to %s must be a float object not a \"%s\"",
+                     __FUNCTION__, Py_TYPE(arg)->tp_name);
+        return (NULL);
     }
 
-    double timeout_s = PyFloat_AsDouble(args[0]);
+    if (timeout_s == -1.0 && PyErr_Occurred()) {
+        return (NULL);
+    }
 
     // take shortcut if timeout is very small or negative
     if (timeout_s <= 1e-4)
@@ -189,19 +215,34 @@ wpt_sleep(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     {
         Py_RETURN_NONE;
     }
-    return NULL;
+    return (NULL);
 }
 
 
 static PyObject *
-wpt_sleep_until(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+wpt_sleep_until(PyObject *self, PyObject *arg)
 {
-    if (nargs != 1)
+    double t_wakeup_s;
+
+    if (PyFloat_Check(arg))
     {
-        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
-        return NULL;
+        t_wakeup_s = PyFloat_AsDouble(arg);
     }
-    double t_wakeup_s = PyFloat_AsDouble(args[0]);
+    else if (PyLong_Check(arg))
+    {
+        t_wakeup_s = PyLong_AsDouble(arg);
+    }
+    else
+    {
+        PyErr_Format(PyExc_TypeError,
+                     "Argument \"t_wakeup_s\" to %s must be a float object not a \"%s\"",
+                     __FUNCTION__, Py_TYPE(arg)->tp_name);
+        return (NULL);
+    }
+
+    if (t_wakeup_s == -1.0 && PyErr_Occurred()) {
+        return (NULL);
+    }
 
     // convert wakeup time from seconds to 100ns intervals and add it to current time
     LARGE_INTEGER due_time;
@@ -211,19 +252,24 @@ wpt_sleep_until(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     {
         Py_RETURN_NONE;
     }
-    return NULL;
+    return (NULL);
 }
 
 
 static PyObject *
-wpt_sleep_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+wpt_sleep_until_ns(PyObject *self, PyObject *arg)
 {
-    if (nargs != 1)
+    if (!PyLong_Check(arg))
     {
-        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
-        return NULL;
+        PyErr_Format(PyExc_TypeError,
+                     "Argument \"t_wakeup_ns\" to %s must be an int object not a \"%s\"",
+                     __FUNCTION__, Py_TYPE(arg)->tp_name);
+        return (NULL);
     }
-    LONGLONG t_wakeup_ns = PyLong_AsLongLong(args[0]);
+    LONGLONG t_wakeup_ns = PyLong_AsLongLong(arg);
+    if (t_wakeup_ns == -1LL && PyErr_Occurred()) {
+        return (NULL);
+    }
 
     // convert wakeup time from nanoseconds to 100ns intervals and add it to current time
     LARGE_INTEGER due_time;
@@ -233,19 +279,24 @@ wpt_sleep_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     {
         Py_RETURN_NONE;
     }
-    return NULL;
+    return (NULL);
 }
 
 
 static PyObject *
-wpt_hotloop_until_ns(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
+wpt_hotloop_until_ns(PyObject *self, PyObject *arg)
 {
-    if (nargs != 1)
+    if (!PyLong_Check(arg))
     {
-        PyErr_SetString(PyExc_TypeError, "The function accepts exactly one positional argument.");
+        PyErr_Format(PyExc_TypeError,
+                     "Argument \"t_wakeup_ns\" to %s must be an int object not a \"%s\"",
+                     __FUNCTION__, Py_TYPE(arg)->tp_name);
         return NULL;
     }
-    ULONGLONG t_wakeup_ns = PyLong_AsUnsignedLongLong(args[0]);
+    ULONGLONG t_wakeup_ns = PyLong_AsUnsignedLongLong(arg);
+    if (t_wakeup_ns == (ULONGLONG)-1 && PyErr_Occurred()) {
+        return NULL;
+    }
 
     while (_wpt_time_ns() < t_wakeup_ns);
     Py_RETURN_NONE;
@@ -263,19 +314,19 @@ static struct PyMethodDef methods[] = {
      "Retrieve the current system time in nannoseconds."},
     {"sleep",
      wpt_sleep,
-     METH_FASTCALL,
+     METH_O,
      "Sleep for the given time using CREATE_WAITABLE_TIMER_HIGH_RESOLUTION."},
     {"_sleep_until",
      wpt_sleep_until,
-     METH_FASTCALL,
+     METH_O,
      "Sleep until given system time in seconds."},
      {"_sleep_until_ns",
      wpt_sleep_until_ns,
-     METH_FASTCALL,
+     METH_O,
      "Sleep until given system time in nanoseconds."},
      {"_hotloop_until_ns",
      wpt_hotloop_until_ns,
-     METH_FASTCALL,
+     METH_O,
      "Hot loop until given system time in nanoseconds."},
     {NULL} // sentinel
 };
@@ -296,7 +347,25 @@ PyMODINIT_FUNC PyInit__t(void)
     hKernel32 = GetModuleHandleW(L"KERNEL32");
     /* Function available on Windows 8, Windows Server 2012 and newer */
     *(FARPROC *)&wpt_GetSystemTimePreciseAsFileTime = GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
-    if (wpt_GetSystemTimePreciseAsFileTime == NULL) return (NULL);
+    if (wpt_GetSystemTimePreciseAsFileTime == NULL)
+    { 
+        PyErr_SetString(PyExc_OSError, "Win32 function \"GetSystemTimePreciseAsFileTime\" not available.");
+        return (NULL);
+    }
+
+    *(FARPROC *)&wpt_CreateWaitableTimerExW = GetProcAddress(hKernel32, "CreateWaitableTimerExW");
+    if (wpt_CreateWaitableTimerExW == NULL)
+    { 
+        PyErr_SetString(PyExc_OSError, "Win32 function \"CreateWaitableTimerExW\" not available.");
+        return (NULL);
+    }
+
+    *(FARPROC *)&wpt_SetWaitableTimerEx = GetProcAddress(hKernel32, "SetWaitableTimerEx");
+    if (wpt_SetWaitableTimerEx == NULL)
+    { 
+        PyErr_SetString(PyExc_OSError, "Win32 function \"SetWaitableTimerEx\" not available.");
+        return (NULL);
+    }
 
     PyObject *module_p;
     module_p = PyModule_Create(&module);
