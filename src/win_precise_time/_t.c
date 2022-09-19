@@ -64,8 +64,25 @@ _sleep_until(LARGE_INTEGER *due_time)
                                               TIMER_ALL_ACCESS);
     if (timer == NULL)
     {
-        PyErr_SetFromWindowsErr(0);
-        return (-1);
+        DWORD firstError = GetLastError();
+        if (firstError == 87ul)
+        {
+            // try fallback without CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+            timer = wpt_CreateWaitableTimerExW(NULL, 
+                                               NULL,
+                                               0,
+                                               TIMER_ALL_ACCESS);
+            if (timer == NULL)
+            {
+                PyErr_Format(PyExc_OSError, "CreateWaitableTimerExW failed with error %lu", GetLastError());
+                return (-1);
+            }
+        }
+        else
+        {
+            PyErr_Format(PyExc_OSError, "CreateWaitableTimerExW failed with error %lu", firstError);
+            return (-1);
+        }
     }
 
     if (!wpt_SetWaitableTimerEx(timer,
@@ -76,7 +93,7 @@ _sleep_until(LARGE_INTEGER *due_time)
                                 NULL,      // no wake context; do not resume from suspend
                                 0))        // no tolerable delay for timer coalescing
     {
-        PyErr_SetFromWindowsErr(0);
+        PyErr_Format(PyExc_OSError, "SetWaitableTimerEx failed with error %lu", GetLastError());
         goto error;
     }
 
@@ -113,7 +130,7 @@ _sleep_until(LARGE_INTEGER *due_time)
             }
 
             if (rc == WAIT_FAILED) {
-                PyErr_SetFromWindowsErr(0);
+                PyErr_Format(PyExc_OSError, "WaitForMultipleObjects failed with error %lu", GetLastError());
                 goto error;
             }
 
@@ -144,7 +161,7 @@ _sleep_until(LARGE_INTEGER *due_time)
         }
 
         if (rc == WAIT_FAILED) {
-            PyErr_SetFromWindowsErr(0);
+            PyErr_Format(PyExc_OSError, "WaitForSingleObject failed with error %lu", GetLastError());
             goto error;
         }
 
