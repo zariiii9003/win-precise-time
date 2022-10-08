@@ -178,6 +178,10 @@ error:
 }
 
 
+PyDoc_STRVAR(time_ns_doc,
+             "time_ns() -> int\n"
+             "Similar to :func:`time` but returns time as an integer number of nanoseconds since the epoch.");
+
 static PyObject *
 wpt_time_ns(PyObject *self, PyObject *args)
 {
@@ -185,12 +189,27 @@ wpt_time_ns(PyObject *self, PyObject *args)
 }
 
 
+PyDoc_STRVAR(time_doc,
+             "time() -> float\n"
+             "Return the time in seconds since the epoch as a floating point "
+             "number. See :func:`time.time` for a detailed description. "
+             "This function provides a timestamp with <1us resolution while "
+             "the builtin :func:`~time.time` function has a resolution of around 15ms.");
+
 static PyObject *
 wpt_time(PyObject *self, PyObject *args)
 {
     return (PyFloat_FromDouble((double)(_wpt_time_ns()) * 1e-9));
 }
 
+PyDoc_STRVAR(sleep_doc,
+             "sleep(secs: float, /) -> None\n"
+             "Suspend execution of the calling thread for the given number of seconds. "
+             "See :func:`time.sleep` for a detailed description. "
+             "This function provides the same accuracy as the Python 3.11 implementation. "
+             "Earlier Python version were unable to achieve sub-millisecond precision.\n\n"
+             ":param secs:\n"
+             "   the sleep duration in seconds");
 
 static PyObject *
 wpt_sleep(PyObject *self, PyObject *arg)
@@ -209,7 +228,7 @@ wpt_sleep(PyObject *self, PyObject *arg)
     else
     {
         PyErr_Format(PyExc_TypeError,
-                     "Argument \"timeout_s\" to %s must be a float object not a \"%s\"",
+                     "Argument \"secs\" to %s must be a float object not a \"%s\"",
                      __FUNCTION__, Py_TYPE(arg)->tp_name);
         return (NULL);
     }
@@ -235,6 +254,12 @@ wpt_sleep(PyObject *self, PyObject *arg)
     return (NULL);
 }
 
+
+PyDoc_STRVAR(sleep_until_doc,
+             "sleep_until(t_wakeup_s: float, /) -> None\n"
+             "Suspend execution of the calling thread until :func:`time` == *t_wakeup_s*.\n\n"
+             ":param t_wakeup_s:\n"
+             "   the wakeup time in seconds since the epoch (unix time)");
 
 static PyObject *
 wpt_sleep_until(PyObject *self, PyObject *arg)
@@ -273,6 +298,12 @@ wpt_sleep_until(PyObject *self, PyObject *arg)
 }
 
 
+PyDoc_STRVAR(sleep_until_ns_doc,
+             "sleep_until_ns(t_wakeup_ns: int, /) -> None\n"
+             "Suspend execution of the calling thread until :func:`time_ns` ``== t_wakeup_ns``.\n\n"
+             ":param t_wakeup_ns:\n"
+             "   the wakeup time in nanoseconds since the epoch");
+
 static PyObject *
 wpt_sleep_until_ns(PyObject *self, PyObject *arg)
 {
@@ -300,6 +331,18 @@ wpt_sleep_until_ns(PyObject *self, PyObject *arg)
 }
 
 
+PyDoc_STRVAR(hotloop_until_ns_doc,
+             "hotloop_until_ns(t_wakeup_ns: int, /) -> None\n"
+             "Run a busy loop until :func:`time_ns` ``== t_wakeup_ns``. "
+             "This function fully loads the CPU core and does not release the "
+             "global interpreter lock (GIL). This function must only be used for "
+             "very short wait time to achieve the highest wakeup time precision.\n\n"
+             ":param t_wakeup_ns:\n"
+             "   the wakeup time in nanoseconds since the epoch\n\n"
+             ".. warning::\n"
+             "   :func:`hotloop_until_ns` makes the process unresponsive. "
+             "   It is only useful for very short high precision waiting.");
+
 static PyObject *
 wpt_hotloop_until_ns(PyObject *self, PyObject *arg)
 {
@@ -324,27 +367,27 @@ static struct PyMethodDef methods[] = {
     {"time",
      wpt_time,
      METH_NOARGS,
-     "Retrieve the current system time in seconds."},
+     time_doc},
     {"time_ns",
      wpt_time_ns,
      METH_NOARGS,
-     "Retrieve the current system time in nannoseconds."},
+     time_ns_doc},
     {"sleep",
      wpt_sleep,
      METH_O,
-     "Sleep for the given time using CREATE_WAITABLE_TIMER_HIGH_RESOLUTION."},
-    {"_sleep_until",
+     sleep_doc},
+    {"sleep_until",
      wpt_sleep_until,
      METH_O,
-     "Sleep until given system time in seconds."},
-     {"_sleep_until_ns",
+     sleep_until_doc},
+     {"sleep_until_ns",
      wpt_sleep_until_ns,
      METH_O,
-     "Sleep until given system time in nanoseconds."},
-     {"_hotloop_until_ns",
+     sleep_until_ns_doc},
+     {"hotloop_until_ns",
      wpt_hotloop_until_ns,
      METH_O,
-     "Hot loop until given system time in nanoseconds."},
+     hotloop_until_ns_doc},
     {NULL} // sentinel
 };
 

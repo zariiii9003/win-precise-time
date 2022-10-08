@@ -2,6 +2,9 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/win-precise-time.svg)](https://pypi.org/project/win-precise-time)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/win-precise-time.svg)](https://pypi.org/project/win-precise-time)
+[![Documentation Status](https://readthedocs.org/projects/win-precise-time/badge/?version=latest)](https://win-precise-time.readthedocs.io/en/latest/?badge=latest)
+
+The documentation is available [here](https://win-precise-time.readthedocs.io/en/latest/).
 
 -----
 
@@ -34,10 +37,10 @@ pip install win-precise-time
 ## Usage
 
 ```python-repl
->>> import win_precise_time
->>> win_precise_time.time()  # retrieve current time
+>>> import win_precise_time as wpt
+>>> wpt.time()  # retrieve current time
 1654539449.4548845
->>> win_precise_time.sleep(0.001)  # sleep for 1ms
+>>> wpt.sleep(0.001)  # sleep for 1ms
 ```
 
 ## Test

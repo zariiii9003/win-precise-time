@@ -8,7 +8,7 @@ from win_precise_time._t import (
     time,
     time_ns,
     sleep,
-    _sleep_until,
-    _sleep_until_ns,
-    _hotloop_until_ns,
+    sleep_until,
+    sleep_until_ns,
+    hotloop_until_ns,
 )

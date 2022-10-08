@@ -9,6 +9,9 @@ def test_function_import():
     from win_precise_time import time
     from win_precise_time import time_ns
     from win_precise_time import sleep
+    from win_precise_time import sleep_until
+    from win_precise_time import sleep_until_ns
+    from win_precise_time import hotloop_until_ns
 
 
 def test_correct_time():
@@ -58,7 +61,7 @@ def test_sleep_until():
     import time
 
     t_wakeup = time.time() + 1.5
-    win_precise_time._sleep_until(t_wakeup)
+    win_precise_time.sleep_until(t_wakeup)
     t1 = time.time()
 
     assert t1 == pytest.approx(t_wakeup)
@@ -69,7 +72,7 @@ def test_sleep_until_ns():
     import time
 
     t_wakeup = time.time_ns() + 1_500_000_000
-    win_precise_time._sleep_until_ns(t_wakeup)
+    win_precise_time.sleep_until_ns(t_wakeup)
     t1 = time.time_ns()
 
     assert t1 == pytest.approx(t_wakeup)
