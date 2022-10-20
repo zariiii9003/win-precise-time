@@ -29,7 +29,7 @@ dependencies = []
 dynamic = ["version"]
 
 [project.urls]
-Documentation = "https://github.com/zariiii9003/win-precise-time#readme"
+Documentation = "https://win-precise-time.readthedocs.io/en/latest/"
 Issues = "https://github.com/zariiii9003/win-precise-time/issues"
 Source = "https://github.com/zariiii9003/win-precise-time"
 Homepage = "https://github.com/zariiii9003/win-precise-time"
