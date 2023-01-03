@@ -113,7 +113,7 @@ _sleep_until(LARGE_INTEGER *due_time)
 
             HANDLE events[] = {timer, sigint_event};
             
-            BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 300000LL);  // thr=0.3ms
+            BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 3000LL);  // thr=0.3ms
             if (keep_gil)
             {
                 rc = WaitForSingleObject(timer, INFINITE);
@@ -148,7 +148,7 @@ _sleep_until(LARGE_INTEGER *due_time)
     }
     else 
     {
-        BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 300000LL);  // thr=0.3ms
+        BOOL keep_gil = _sleep_time_is_below_threshold(due_time->QuadPart, 3000LL);  // thr=0.3ms
         if (keep_gil)
         {
             rc = WaitForSingleObject(timer, INFINITE);
