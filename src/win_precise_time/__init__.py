@@ -5,10 +5,10 @@
 __version__ = "1.4.1"
 
 from win_precise_time._t import (
-    time,
-    time_ns,
-    sleep,
-    sleep_until,
-    sleep_until_ns,
-    hotloop_until_ns,
+    time as time,
+    time_ns as time_ns,
+    sleep as sleep,
+    sleep_until as sleep_until,
+    sleep_until_ns as sleep_until_ns,
+    hotloop_until_ns as hotloop_until_ns,
 )
