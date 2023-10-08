@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 
 from win_precise_time._t import (
     time as time,
