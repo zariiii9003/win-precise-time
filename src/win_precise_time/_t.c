@@ -38,7 +38,7 @@ static ULONGLONG _wpt_time_ns()
 }
 
 
-// helper function to check wether remaining sleep duration is below threshold
+// helper function to check whether remaining sleep duration is below threshold
 static BOOL _sleep_time_is_below_threshold(LONGLONG due_time, LONGLONG thr)
 {
     if (due_time < 0)

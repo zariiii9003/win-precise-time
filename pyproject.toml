@@ -1,6 +1,6 @@
 [build-system]
-build-backend = 'setuptools.build_meta'
-requires = ["setuptools >= 62.0"]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "win-precise-time"
@@ -34,8 +34,13 @@ Issues = "https://github.com/zariiii9003/win-precise-time/issues"
 Source = "https://github.com/zariiii9003/win-precise-time"
 Homepage = "https://github.com/zariiii9003/win-precise-time"
 
-[tool.setuptools.dynamic]
-version = {attr = "win_precise_time.__version__"}
+[tool.scikit-build]
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/win_precise_time/_version.py"]
+wheel.packages = ["src/win_precise_time"]
+
+[tool.setuptools_scm]  # Section required
+write_to = "src/win_precise_time/_version.py"
 
 [tool.cibuildwheel]
 test-requires = "pytest"

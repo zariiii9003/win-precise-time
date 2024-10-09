@@ -6,6 +6,7 @@ def test_module_import():
 
 
 def test_function_import():
+    from win_precise_time import __version__
     from win_precise_time import time
     from win_precise_time import time_ns
     from win_precise_time import sleep

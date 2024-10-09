@@ -134,3 +134,5 @@ dmypy.json
 # IDEs
 /.idea/
 /.vscode/
+
+/src/win_precise_time/_version.py
