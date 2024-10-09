@@ -15,7 +15,7 @@ author = "Artur Drogunow"
 
 with open("../src/win_precise_time/_version.py", "r", encoding="utf-8") as f:
     __version__ = re.search(
-        r'^__version__\s*=(\s*version\s*=)?\s*[\'"]([^\'"]*)[\'"]',
+        r'^__version__\s*=(?:\s*version\s*=)?\s*[\'"]([^\'"]*)[\'"]',
         f.read(),
         re.MULTILINE,
     ).group(1)
